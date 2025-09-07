@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>LearNio 🐍📚 — Enhanced</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg1: #ffecd2; --bg2: #fcb69f;
+    --card: #fff; --text: #222; --accent: #4A148C;
+    --muted: #555;
+  }
+  body {
+    font-family: "Comic Sans MS", Arial, sans-serif;
+    background: linear-gradient(135deg,var(--bg1),var(--bg2));
+    text-align:center; margin:0; padding:18px; color:var(--text);
+  }
+  h1{ font-size:2rem; color:var(--accent); margin:6px 0;}
+  .page{ display:none; }
+  .active{ display:block; }
+  .card {
+    background:var(--card); border-radius:16px; padding:18px; margin:14px auto; width:360px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.12);
+  }
+  input, select, button { margin:8px 0; padding:10px; font-size:16px; width:90%; border-radius:10px; border:none; }
+  button { background:var(--accent); color:white; cursor:pointer; font-weight:700; transition: transform .12s; }
+  button:hover { transform:scale(1.03); background:#6A1B9A; }
+  canvas#gameCanvas{ background:#111; display:block; margin:12px auto; border:4px solid #fff; border-radius:12px; }
+  .small{ font-size:13px; color:var(--muted); margin-top:8px; }
+  .flashcard{ background:var(--card); border-radius:12px; padding:12px; width:480px; margin:12px auto; box-shadow:0 6px 12px rgba(0,0,0,0.12); }
+  .flashcard img{ max-width:100%; border-radius:8px; margin-bottom:8px; }
+  .option-btn{ display:block; width:80%; margin:8px auto; padding:10px; font-size:16px; border-radius:8px; border:none; background:#FF7043; color:white; cursor:pointer; }
+  .option-btn:hover{ background:#F4511E; }
+  #headerRow{ display:flex; align-items:center; justify-content:space-between; max-width:980px; margin:0 auto 12px; gap:10px; }
+  .status{ font-weight:700; color:#2E7D32; }
+  .avatar{ font-size:24px; margin-right:8px; }
+  .badge-toast{
+    position:fixed; right:18px; top:18px; background:#fff; padding:10px 14px; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,0.18); display:none; z-index:9999;
+  }
+  /* shake animation */
+  .shake { animation: shake .35s; }
+  @keyframes shake {
+    0%{ transform:translateX(0) }
+    20%{ transform:translateX(-6px) }
+    40%{ transform:translateX(6px) }
+    60%{ transform:translateX(-4px) }
+    80%{ transform:translateX(4px) }
+    100%{ transform:translateX(0) }
+  }
+  /* dark theme */
+  .dark-theme{
+    --bg1:#0f1724; --bg2:#101827; --card:#0f1724; --text:#e6eef6; --accent:#9b59b6; --muted:#9aa6b2;
+    background: linear-gradient(135deg,var(--bg1),var(--bg2));
+  }
+  /* small leaderboard */
+  #leaderboard{ max-width:420px; margin:12px auto; text-align:left; padding:12px; border-radius:10px; background:rgba(255,255,255,0.9); }
+  .controls-row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:8px; }
+  /* responsive */
+  @media(max-width:600px){
+    .flashcard{ width:94%; }
+    .card{ width:94%; }
+    canvas#gameCanvas{ width:95%; height:auto; }
+  }
+</style>
+</head>
+<body>
+
+<div id="headerRow">
+  <div>
+    <h1>🎓 LearNio</h1>
+    <div class="small">Learn & play — math snake + flashcards</div>
+  </div>
+  <div style="text-align:right;">
+    <div class="small"> <span id="playerHeader">Player: —</span> <span id="avatarShow" class="avatar"></span></div>
+    <div class="small"> <button id="darkModeToggle">🌙 Toggle Dark</button></div>
+  </div>
+</div>
+
+<!-- Welcome -->
+<div id="welcomePage" class="page active">
+  <div class="card">
+    <input id="heroName" type="text" placeholder="Enter Hero Name (optional)">
+    <div style="display:flex; gap:8px; justify-content:center;">
+      <select id="avatarSelect" style="width:44%;">
+        <option value="student">👩‍🎓 Student</option>
+        <option value="scientist">🔬 Scientist</option>
+        <option value="explorer">🧭 Explorer</option>
+      </select>
+      <select id="playerCount" style="width:44%;">
+        <option value="1">Single Player</option>
+        <option value="2">Two Players</option>
+      </select>
+    </div>
+    <select id="subjectSelect">
+      <option value="math">Math 🧮 (Snake)</option>
+      <option value="science">Science 🔬 (Flashcards)</option>
+      <option value="social">Social 🌍 (Flashcards)</option>
+    </select>
+    <select id="levelSelect">
+      <option value="0">LKG (10 Qs)</option>
+      <option value="1">Class 1 (11 Qs)</option>
+      <option value="2">Class 2 (12 Qs)</option>
+      <option value="3">Class 3 (13 Qs)</option>
+      <option value="4">Class 4 (14 Qs)</option>
+      <option value="5">Class 5 (15 Qs)</option>
+    </select>
+    <div class="controls-row">
+      <button id="startBtn">Start Game 🎮</button>
+      <button id="quickMath">Quick Math</button>
+      <button id="viewLeaderboard">View Leaderboard</button>
+    </div>
+    <div class="small">Choose avatar, player count, subject & level. Multiplayer alternates turns.</div>
+  </div>
+
+  <div id="leaderboard" style="display:none;">
+    <h3>Local Leaderboard</h3>
+    <ol id="leaderList"></ol>
+    <div class="controls-row"><button id="clearLeaderboard">Clear</button><button id="closeLB">Close</button></div>
+  </div>
+</div>
+
+<!-- Game Page -->
+<div id="gamePage" class="page">
+  <div class="card" style="max-width:980px; margin:6px auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div id="heroInfo" style="font-size:18px; font-weight:800;"></div>
+        <div class="small" id="subjectLevel"></div>
+        <div class="small" id="turnInfo"></div>
+      </div>
+      <div style="text-align:right;">
+        <div class="small status" id="scoreDisplay">Score: 0</div>
+        <div class="small" id="livesDisplay"></div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas" width="720" height="420"></canvas>
+
+  <div id="quizArea" style="display:none;">
+    <div class="flashcard" id="flashcard">
+      <img id="flashImage" src="" alt="flash">
+      <p id="flashText" style="font-weight:700;"></p>
+      <div id="options"></div>
+      <div class="footer-actions">
+        <div id="progress" class="small"></div>
+        <div id="timeLeft" class="small"></div>
+      </div>
+    </div>
+    <p id="score" class="small">Score: 0</p>
+  </div>
+
+  <div style="margin-top:10px;">
+    <div class="controls-row">
+      <button id="endBtn">Finish & Back to Menu</button>
+      <button id="skipBtn">Skip Q (penalty)</button>
+      <button id="pauseBtn">Pause/Resume</button>
+    </div>
+  </div>
+</div>
+
+<!-- confetti canvas overlay -->
+<canvas id="confettiCanvas" style="position:fixed; left:0; top:0; pointer-events:none; z-index:999;"></canvas>
+
+<div class="badge-toast" id="badgeToast"></div>
+
+<!-- sounds -->
+<audio id="ding" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+<audio id="oops" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+
+<script>
+/* ---------------------- Data pools (same as your prior pools) ---------------------- */
+const sciencePool = [
+  { q:"What color is the sky on a clear day?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Blue_sky.jpg/640px-Blue_sky.jpg", options:["Red","Blue","Green","Yellow"], a:"Blue"},
+  { q:"Which part of a plant makes food?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Leaf.jpg/640px-Leaf.jpg", options:["Root","Stem","Leaf","Flower"], a:"Leaf"},
+  { q:"Which animal gives us milk?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Cow_female_black_white.jpg/640px-Cow_female_black_white.jpg", options:["Dog","Cat","Cow","Hen"], a:"Cow"},
+  { q:"What do bees make?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Honey_bees_in_hive.jpg/640px-Honey_bees_in_hive.jpg", options:["Wax","Honey","Milk","Silk"], a:"Honey"},
+  { q:"Which object shines at night?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/640px-FullMoon2010.jpg", options:["Sun","Moon","Lamp","Star"], a:"Moon"},
+  { q:"Which animal swims in water?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Clown_fish.jpg/640px-Clown_fish.jpg", options:["Fish","Dog","Bird","Cat"], a:"Fish"},
+  { q:"Which is a fruit that is red?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Red_Apple.jpg/640px-Red_Apple.jpg", options:["Apple","Cabbage","Potato","Lemon"], a:"Apple"},
+  { q:"What do plants need to grow?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Sunflower.jpg/640px-Sunflower.jpg", options:["Water","Fire","Plastic","Stone"], a:"Water"},
+  { q:"Which insect has wings and is colorful?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Monarch_Butterfly_Danaus_plexippus_Male_2664px.jpg/640px-Monarch_Butterfly_Danaus_plexippus_Male_2664px.jpg", options:["Ant","Butterfly","Spider","Worm"], a:"Butterfly"},
+  { q:"Which gas do humans breathe in?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Two_breathing.png/640px-Two_breathing.png", options:["Oxygen","Hydrogen","Argon","Helium"], a:"Oxygen"},
+  { q:"What do we call frozen water?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Ice_cube.jpg/640px-Ice_cube.jpg", options:["Steam","Ice","Salt","Sand"], a:"Ice"},
+  { q:"Which organ pumps blood?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Heart_anatomy_diagram.jpg/640px-Heart_anatomy_diagram.jpg", options:["Lungs","Heart","Brain","Stomach"], a:"Heart"},
+  { q:"Which planet do we live on?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/640px-The_Earth_seen_from_Apollo_17.jpg", options:["Mars","Earth","Venus","Jupiter"], a:"Earth"},
+  { q:"What helps plants make food using sunlight?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Photosynthesis_diagram.jpg/640px-Photosynthesis_diagram.jpg", options:["Photosynthesis","Digestion","Burning","Melting"], a:"Photosynthesis"},
+  { q:"Which is a flying mammal?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Vampire-bat.jpg/640px-Vampire-bat.jpg", options:["Bat","Cow","Horse","Fish"], a:"Bat"}
+];
+const socialPool = [
+  { q:"How many colors are in India's flag?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Flag_of_India.svg/640px-Flag_of_India.svg.png", options:["2","3","4","5"], a:"3"},
+  { q:"Which monument is the Taj Mahal?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Taj-Mahal_in_March_2004.jpg/640px-Taj-Mahal_in_March_2004.jpg", options:["Fort","Temple","Mausoleum","Market"], a:"Mausoleum"},
+  { q:"Capital city of India?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/India_New_Delhi_Location.svg/640px-India_New_Delhi_Location.svg.png", options:["Mumbai","Kolkata","New Delhi","Chennai"], a:"New Delhi"},
+  { q:"Who is known as the Father of the Nation (India)?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Mahatma_Gandhi%2C_portrait.jpg/640px-Mahatma_Gandhi%2C_portrait.jpg", options:["Nehru","Gandhi","Patel","Bose"], a:"Gandhi"},
+  { q:"Where is the Red Fort located?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Red_Fort,_Delhi,_India.jpg/640px-Red_Fort,_Delhi,_India.jpg", options:["Agra","Delhi","Mumbai","Hyderabad"], a:"Delhi"},
+  { q:"Which is India's national animal?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Bengal_tiger_in_bannerghatta.jpg/640px-Bengal_tiger_in_bannerghatta.jpg", options:["Lion","Elephant","Tiger","Deer"], a:"Tiger"},
+  { q:"Which river is the Ganga?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Ganges_River_%28Haridwar%29.jpg/640px-Ganges_River_%28Haridwar%29.jpg", options:["Sea","River","Lake","Canal"], a:"River"},
+  { q:"Which is a festival of lights in India?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Diwali-Lights.jpg/640px-Diwali-Lights.jpg", options:["Holi","Eid","Diwali","Christmas"], a:"Diwali"},
+  { q:"Which bird is India's national bird?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Peafowl.jpg/640px-Peafowl.jpg", options:["Sparrow","Crow","Peacock","Eagle"], a:"Peacock"},
+  { q:"Which is the largest continent?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/World_map_blank_without_borders.svg/640px-World_map_blank_without_borders.svg.png", options:["Asia","Africa","Europe","Australia"], a:"Asia"},
+  { q:"What do we call our family members' parents?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Family_gathering.jpg/640px-Family_gathering.jpg", options:["Neighbors","Friends","Parents","Siblings"], a:"Parents"},
+  { q:"Which instrument is used to tell time (clock)?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Analog_clock_face.png/640px-Analog_clock_face.png", options:["Phone","Clock","Book","Car"], a:"Clock"},
+  { q:"Which sport is considered India's national sport historically?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Hockey_field.jpg/640px-Hockey_field.jpg", options:["Cricket","Football","Hockey","Kabaddi"], a:"Hockey"},
+  { q:"What do we call our school teacher?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/School_teacher_with_Kids.jpg/640px-School_teacher_with_Kids.jpg", options:["Driver","Teacher","Doctor","Cook"], a:"Teacher"},
+  { q:"Which map shows countries and states?", img:"https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/India_states_map.png/640px-India_states_map.png", options:["Weather map","Road map","Political map","Treasure map"], a:"Political map"}
+];
+
+const questionBank = { math: {}, science: {}, social: {} };
+// minimal math bank (simple)
+questionBank.math = {
+  0:[{q:"1+1=?", a:"2", options:["1","2","3","4"]}],
+  1:[{q:"2+3=?", a:"5", options:["4","5","6","7"]}],
+  2:[{q:"3×3=?", a:"9", options:["6","7","8","9"]}],
+  3:[{q:"12÷3=?", a:"4", options:["3","4","5","6"]}],
+  4:[{q:"9×9=?", a:"81", options:["72","81","90","99"]}],
+  5:[{q:"12×12=?", a:"144", options:["132","144","122","154"]}]
+};
+for(let lvl=0; lvl<=5; lvl++){
+  const count = 10 + lvl;
+  questionBank.science[lvl] = sciencePool.slice(0, count).map(it=>({...it}));
+  questionBank.social[lvl] = socialPool.slice(0, count).map(it=>({...it}));
+}
+
+/* ---------------------- UI refs ---------------------- */
+const welcomePage = document.getElementById('welcomePage');
+const gamePage = document.getElementById('gamePage');
+const heroInfo = document.getElementById('heroInfo');
+const subjectLevel = document.getElementById('subjectLevel');
+const playerHeader = document.getElementById('playerHeader');
+const avatarShow = document.getElementById('avatarShow');
+
+const scoreDisplay = document.getElementById('scoreDisplay');
+const livesDisplay = document.getElementById('livesDisplay');
+const turnInfo = document.getElementById('turnInfo');
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const quizArea = document.getElementById('quizArea');
+const flashImage = document.getElementById('flashImage');
+const flashText = document.getElementById('flashText');
+const optionsDiv = document.getElementById('options');
+const progressEl = document.getElementById('progress');
+const timeLeftEl = document.getElementById('timeLeft');
+
+const confettiCanvas = document.getElementById('confettiCanvas');
+const confettiCtx = confettiCanvas.getContext('2d');
+
+const badgeToast = document.getElementById('badgeToast');
+const ding = document.getElementById('ding');
+const oops = document.getElementById('oops');
+
+confettiCanvas.width = window.innerWidth;
+confettiCanvas.height = window.innerHeight;
+window.addEventListener('resize', ()=>{ confettiCanvas.width = window.innerWidth; confettiCanvas.height = window.innerHeight; });
+
+/* ---------------------- Game state ---------------------- */
+let heroName = '', avatar = 'student', playerCount = 1, subject='math', level=0;
+let players = []; // array of objects {name, avatar, score, lives, correctStreak, badges: Set}
+let currentPlayerIndex = 0;
+
+let quizList = [], quizIndex = 0, quizTimer = null, quizTimeLeft = 0;
+let mathCurrentQ = null, foodOptions = [], snake = [], direction='RIGHT', snakeTimer=null, snakeSpeed=150, running=true;
+
+let confettiParticles = [];
+
+/* ---------------------- helpers ---------------------- */
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+function showBadge(text){ badgeToast.innerText = text; badgeToast.style.display='block'; setTimeout(()=> badgeToast.style.display='none', 2800); }
+function playCorrect(){ try{ ding.currentTime=0; ding.play(); }catch(e){} }
+function playWrong(){ try{ oops.currentTime=0; oops.play(); }catch(e){} }
+
+/* ---------------------- Leaderboard (localStorage) ---------------------- */
+function saveScoreToLeaderboard(name, score){
+  const key = 'eduquest_leaderboard_v1';
+  const arr = JSON.parse(localStorage.getItem(key)||'[]');
+  arr.push({name,score,date:Date.now()});
+  arr.sort((a,b)=>b.score-a.score);
+  localStorage.setItem(key, JSON.stringify(arr.slice(0,10)));
+}
+function showLeaderboardUI(){
+  const lb = document.getElementById('leaderboard');
+  const list = document.getElementById('leaderList');
+  list.innerHTML='';
+  const arr = JSON.parse(localStorage.getItem('eduquest_leaderboard_v1')||'[]');
+  if(arr.length===0) list.innerHTML='<li>No entries yet</li>';
+  else arr.forEach(e=>{ const li=document.createElement('li'); li.innerText = `${e.name} — ${e.score}`; list.appendChild(li); });
+  lb.style.display='block';
+}
+
+/* ---------------------- Avatar emoji ---------------------- */
+const avatarEmoji = { student:'👩‍🎓', scientist:'🔬', explorer:'🧭' };
+
+/* ---------------------- Event wiring ---------------------- */
+document.getElementById('startBtn').addEventListener('click', startFromUI);
+document.getElementById('quickMath').addEventListener('click', ()=>{ document.getElementById('subjectSelect').value='math'; document.getElementById('levelSelect').value='0'; startFromUI(); });
+document.getElementById('darkModeToggle').addEventListener('click', ()=> document.body.classList.toggle('dark-theme'));
+document.getElementById('endBtn').addEventListener('click', backToMenu);
+document.getElementById('skipBtn').addEventListener('click', skipQuestion);
+document.getElementById('pauseBtn').addEventListener('click', togglePause);
+document.getElementById('viewLeaderboard').addEventListener('click', showLeaderboardUI);
+document.getElementById('clearLeaderboard').addEventListener('click', ()=>{ localStorage.removeItem('eduquest_leaderboard_v1'); showLeaderboardUI(); });
+document.getElementById('closeLB').addEventListener('click', ()=>{ document.getElementById('leaderboard').style.display='none'; });
+
+/* ---------------------- Start / Setup players ---------------------- */
+function startFromUI(){
+  heroName = document.getElementById('heroName').value.trim() || 'Hero';
+  avatar = document.getElementById('avatarSelect').value;
+  playerCount = parseInt(document.getElementById('playerCount').value);
+  subject = document.getElementById('subjectSelect').value;
+  level = parseInt(document.getElementById('levelSelect').value);
+
+  // create players
+  players = [];
+  if(playerCount === 1){
+    players.push({ name: heroName, avatar, score:0, lives:3, correctStreak:0, badges: new Set() });
+  } else {
+    // two players: use heroName for player1 and generic "Player 2"
+    players.push({ name: heroName || 'Player 1', avatar, score:0, lives:3, correctStreak:0, badges: new Set() });
+    players.push({ name: 'Player 2', avatar:'explorer', score:0, lives:3, correctStreak:0, badges: new Set() });
+  }
+  currentPlayerIndex = 0;
+  startGame();
+}
+
+/* ---------------------- Start game (branch) ---------------------- */
+function startGame(){
+  // reset some shared UI stuff
+  welcomePage.classList.remove('active');
+  gamePage.classList.add('active');
+  document.getElementById('leaderboard').style.display='none';
+  updateHeader();
+
+  // branch
+  if(subject === 'math'){
+    quizArea.style.display = 'none';
+    canvas.style.display = 'block';
+    initSnake();
+    nextMathQuestion();
+    startSnakeLoop();
+  } else {
+    // build quizList from pool and set index
+    quizList = questionBank[subject][level].slice();
+    shuffle(quizList);
+    quizIndex = 0;
+    canvas.style.display = 'none';
+    quizArea.style.display = 'block';
+    showQuizQuestion();
+  }
+}
+
+/* ---------------------- header / UI update ---------------------- */
+function updateHeader(){
+  const p = players[currentPlayerIndex];
+  heroInfo.innerText = `${p.name} ${avatarEmoji[p.avatar] || ''}`;
+  subjectLevel.innerText = `Subject: ${subject.toUpperCase()} — Level: ${document.getElementById('levelSelect').options[level].text}`;
+  playerHeader.innerText = `Turn: ${p.name}`;
+  avatarShow.innerText = avatarEmoji[p.avatar] || '';
+  scoreDisplay.innerText = `Score: ${p.score}`;
+  turnInfo.innerText = playerCount>1 ? `Player ${currentPlayerIndex+1} of ${playerCount} — switch after each question` : '';
+}
+
+/* ---------------------- MATH LOGIC ---------------------- */
+// simple snake layout: grid 20px
+function initSnake(){
+  snake = [{x:300,y:200}];
+  direction = 'RIGHT';
+  snakeSpeed = Math.max(80, 160 - level*12);
+  running = true;
+  if(snakeTimer) clearTimeout(snakeTimer);
+}
+function nextMathQuestion(){
+  const qlist = questionBank.math[level] || questionBank.math[0];
+  mathCurrentQ = qlist[Math.floor(Math.random()*qlist.length)];
+  // create food options randomly placed
+  foodOptions = mathCurrentQ.options.map(opt=>({
+    x: Math.floor(Math.random()*Math.floor(canvas.width/20))*20,
+    y: Math.floor(Math.random()*Math.floor(canvas.height/20))*20,
+    value: opt
+  }));
+}
+function drawMath(){
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  // draw snake
+  ctx.fillStyle = "lime";
+  snake.forEach(s=> ctx.fillRect(s.x,s.y,20,20));
+  // draw food
+  ctx.font = "14px Arial";
+  foodOptions.forEach(f=>{
+    ctx.beginPath(); ctx.fillStyle='orange'; ctx.arc(f.x+10,f.y+10,10,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='white'; ctx.fillText(f.value, f.x+2, f.y+15);
+  });
+  // draw question
+  ctx.fillStyle = 'white'; ctx.font = '16px Arial';
+  ctx.fillText(mathCurrentQ.q, 10, 18);
+}
+function updateMath(){
+  let head = {...snake[0]};
+  if(direction==='RIGHT') head.x +=20;
+  if(direction==='LEFT') head.x -=20;
+  if(direction==='UP') head.y -=20;
+  if(direction==='DOWN') head.y +=20;
+  // wrap
+  if(head.x < 0) head.x = canvas.width - 20;
+  if(head.x >= canvas.width) head.x = 0;
+  if(head.y < 0) head.y = canvas.height - 20;
+  if(head.y >= canvas.height) head.y = 0;
+
+  // check food collision
+  for(let i=0;i<foodOptions.length;i++){
+    const f = foodOptions[i];
+    if(head.x === f.x && head.y === f.y){
+      const p = players[currentPlayerIndex];
+      if(f.value === mathCurrentQ.a){
+        p.score += 10;
+        p.correctStreak = (p.correctStreak || 0) + 1;
+        playCorrect();
+        spawnConfetti();
+        checkBadges(p, true);
+      } else {
+        p.lives = Math.max(0, p.lives - 1);
+        p.correctStreak = 0;
+        playWrong();
+        // shake canvas
+        canvas.classList.add('shake');
+        setTimeout(()=> canvas.classList.remove('shake'), 350);
+      }
+      nextMathQuestion();
+      updateHeader();
+      // switch turn in multiplayer
+      if(playerCount>1) switchTurn();
+      break;
+    }
+  }
+
+  snake.unshift(head);
+  snake.pop();
+}
+function gameLoop(){
+  if(!running) return;
+  if(subject !== 'math') return;
+  updateMath(); drawMath();
+  snakeTimer = setTimeout(gameLoop, snakeSpeed);
+}
+function startSnakeLoop(){ running=true; if(snakeTimer) clearTimeout(snakeTimer); gameLoop(); }
+function stopSnakeLoop(){ running=false; if(snakeTimer) clearTimeout(snakeTimer); }
+
+/* keyboard control only active for math and only current player's window (we'll allow same keyboard) */
+document.addEventListener('keydown', e=>{
+  if(subject !== 'math') return;
+  if(e.key==='ArrowUp' && direction!=='DOWN') direction='UP';
+  if(e.key==='ArrowDown' && direction!=='UP') direction='DOWN';
+  if(e.key==='ArrowLeft' && direction!=='RIGHT') direction='LEFT';
+  if(e.key==='ArrowRight' && direction!=='LEFT') direction='RIGHT';
+});
+
+/* ---------------------- QUIZ LOGIC (Science & Social) ---------------------- */
+let currentQuestionStartTime = 0;
+function showQuizQuestion(){
+  optionsDiv.innerHTML='';
+  if(quizIndex >= quizList.length){
+    // finished session for this player
+    const p = players[currentPlayerIndex];
+    // if perfect
+    if(p.score === quizList.length*10) {
+      if(!p.badges.has('Quiz Master')){
+        p.badges.add('Quiz Master'); showBadge(`📚 Quiz Master unlocked! 100% score`);
+      }
+    }
+    // Save to leaderboard if single player
+    if(playerCount === 1) saveScoreToLeaderboard(p.name, p.score);
+    // show final screen
+    flashImage.style.display='none';
+    flashText.innerText = `🎉 Quiz Completed! ${p.name} scored ${p.score}`;
+    progressEl.innerText = '';
+    optionsDiv.innerHTML = `<div style="margin-top:12px;"><button onclick="backToMenu()">Back to Menu</button></div>`;
+    return;
+  }
+  const q = quizList[quizIndex];
+  flashImage.src = q.img; flashImage.style.display='block';
+  flashText.innerText = q.q;
+  progressEl.innerText = `Question ${quizIndex+1} / ${quizList.length}`;
+  // shuffle options
+  const opts = q.options.slice(); shuffle(opts);
+  opts.forEach(opt=>{
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.innerText = opt;
+    btn.onclick = ()=> handleQuizAnswer(opt, q);
+    optionsDiv.appendChild(btn);
+  });
+  // start timer for fast-thinker: monitor answer time
+  currentQuestionStartTime = Date.now();
+  quizTimeLeft = 15; // seconds to answer, visible countdown
+  timeLeftEl.innerText = `Time left: ${quizTimeLeft}s`;
+  if(quizTimer) clearInterval(quizTimer);
+  quizTimer = setInterval(()=>{
+    quizTimeLeft--; timeLeftEl.innerText = `Time left: ${quizTimeLeft}s`;
+    if(quizTimeLeft<=0){ clearInterval(quizTimer); // treat as wrong and requeue
+      handleTimeout(q);
+    }
+  },1000);
+}
+function handleQuizAnswer(opt, q){
+  if(quizTimer) clearInterval(quizTimer);
+  const p = players[currentPlayerIndex];
+  const timeTaken = (Date.now() - currentQuestionStartTime)/1000;
+  if(opt === q.a){
+    p.score += 10;
+    p.correctStreak = (p.correctStreak || 0) + 1;
+    playCorrect();
+    spawnConfetti();
+    // badges: Sharp Shooter (5 correct in a row)
+    if(p.correctStreak >= 5 && !p.badges.has('Sharp Shooter')){
+      p.badges.add('Sharp Shooter'); showBadge('🌟 Sharp Shooter — 5 correct in a row!');
+    }
+    // Fast Thinker
+    if(timeTaken < 5 && !p.badges.has('Fast Thinker')){
+      p.badges.add('Fast Thinker'); showBadge('🕐 Fast Thinker — answered in <5s!');
+    }
+    quizIndex++;
+  } else {
+    p.lives = Math.max(0, p.lives - 1);
+    p.correctStreak = 0;
+    playWrong();
+    // shake
+    document.getElementById('flashcard').classList.add('shake');
+    setTimeout(()=> document.getElementById('flashcard').classList.remove('shake'), 350);
+    // adaptive: push q to end
+    quizList.push(q);
+    quizIndex++;
+  }
+  updateHeader();
+  // switch turn for multiplayer after each question
+  if(playerCount>1) switchTurn();
+  // small delay then next
+  setTimeout(showQuizQuestion, 300);
+}
+function handleTimeout(q){
+  if(quizTimer) clearInterval(quizTimer);
+  const p = players[currentPlayerIndex];
+  p.lives = Math.max(0, p.lives - 1);
+  p.correctStreak = 0;
+  playWrong();
+  // adaptive: requeue
+  quizList.push(q);
+  quizIndex++;
+  updateHeader();
+  if(playerCount>1) switchTurn();
+  setTimeout(showQuizQuestion, 300);
+}
+function skipQuestion(){
+  // skip current question with small penalty
+  if(subject === 'math') return;
+  if(quizIndex < quizList.length){
+    const p = players[currentPlayerIndex];
+    p.score = Math.max(0, p.score - 5);
+    // move q to end
+    const q = quizList[quizIndex];
+    quizList.push(q);
+    quizIndex++;
+    updateHeader();
+    if(playerCount>1) switchTurn();
+    if(quizTimer) clearInterval(quizTimer);
+    showQuizQuestion();
+  }
+}
+
+/* ---------------------- Turn switching ---------------------- */
+function switchTurn(){
+  if(playerCount <= 1) return;
+  currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
+  // reset timers or pause snake loop if switching away
+  updateHeader();
+}
+
+/* ---------------------- Pause / Resume ---------------------- */
+let paused = false;
+function togglePause(){
+  paused = !paused;
+  if(paused){
+    stopSnakeLoop();
+    if(quizTimer) clearInterval(quizTimer);
+    document.getElementById('pauseBtn').innerText = 'Resume';
+  } else {
+    if(subject==='math') startSnakeLoop();
+    else showQuizQuestion();
+    document.getElementById('pauseBtn').innerText = 'Pause/Resume';
+  }
+}
+
+/* ---------------------- Back to menu ---------------------- */
+function backToMenu(){
+  // stop loops & timers
+  stopSnakeLoop();
+  if(quizTimer) clearInterval(quizTimer);
+  // save top player's score to leaderboard (if single)
+  if(playerCount===1) saveScoreToLeaderboard(players[0].name, players[0].score);
+  welcomePage.classList.add('active');
+  gamePage.classList.remove('active');
+  // reset displays
+  document.getElementById('leaderboard').style.display='none';
+}
+
+/* ---------------------- confetti (simple) ---------------------- */
+function spawnConfetti(){
+  for(let i=0;i<50;i++){
+    confettiParticles.push({
+      x: Math.random()*confettiCanvas.width,
+      y: -20 - Math.random()*200,
+      vx: (Math.random()-0.5)*4,
+      vy: 1 + Math.random()*3,
+      size: 6 + Math.random()*6,
+      color: ['#f94144','#f3722c','#f9c74f','#90be6d','#577590'][Math.floor(Math.random()*5)],
+      rot: Math.random()*360
+    });
+  }
+  if(!confettiLoopRunning) startConfettiLoop();
+}
+let confettiLoopRunning = false;
+function startConfettiLoop(){
+  confettiLoopRunning = true;
+  (function frame(){
+    confettiCtx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+    for(let i=confettiParticles.length-1;i>=0;i--){
+      const p = confettiParticles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.rot += 6;
+      confettiCtx.save();
+      confettiCtx.translate(p.x,p.y);
+      confettiCtx.rotate(p.rot*Math.PI/180);
+      confettiCtx.fillStyle = p.color;
+      confettiCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size/2);
+      confettiCtx.restore();
+      if(p.y > confettiCanvas.height + 40) confettiParticles.splice(i,1);
+    }
+    if(confettiParticles.length>0) requestAnimationFrame(frame);
+    else confettiLoopRunning = false;
+  })();
+}
+
+/* ---------------------- Badges check for math too ---------------------- */
+function checkBadges(player, correct){
+  if(correct){
+    // Sharp Shooter check handled elsewhere, but keep consistent
+    if(player.correctStreak >= 5 && !player.badges.has('Sharp Shooter')){
+      player.badges.add('Sharp Shooter'); showBadge('🌟 Sharp Shooter — 5 correct in a row!');
+    }
+  } else {
+    player.correctStreak = 0;
+  }
+}
+
+/* ---------------------- Finish / winner for multiplayer ---------------------- */
+/* For simplicity, when user clicks Back to Menu after both players had their turn sessions,
+   leaderboard saved for single player earlier. For two-player we can show winner when both players have no lives left or after explicit end. */
+function computeWinnerAndShow(){
+  if(playerCount === 2){
+    const [a,b] = players;
+    const winner = (a.score === b.score) ? null : (a.score > b.score ? a : b);
+    if(winner) alert(`🏆 Winner: ${winner.name} — ${winner.score} points`);
+    else alert(`🤝 It's a tie! ${a.score} — ${b.score}`);
+  }
+}
+
+/* ---------------------- Keyboard safety: stop loops when leaving page ---------------------- */
+window.addEventListener('beforeunload', ()=>{ stopSnakeLoop(); if(quizTimer) clearInterval(quizTimer); });
+
+/* ---------------------- wire leaderboard UI show/hide ---------------------- */
+/* Initially hidden; user clicks "View Leaderboard" to show */
+document.getElementById('viewLeaderboard').addEventListener('click', ()=>{
+  showLeaderboardUI();
+});
+
+/* ---------------------- End of script ---------------------- */
+</script>
+</body>
+</html>
